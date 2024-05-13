@@ -22,3 +22,13 @@ export async function createUser(username, email, hPassword, role) {
     [username, email, hPassword, role]
   );
 }
+
+export async function getUser(id) {
+  const [user] = await pool.query('SELECT * FROM user WHERE id = ?', [id]);
+  return user[0];
+}
+
+export async function getUsers() {
+  const [users] = await pool.query('SELECT username, email, role FROM user');
+  return users;
+}

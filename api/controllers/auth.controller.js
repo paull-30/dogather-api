@@ -1,10 +1,10 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { User } from '../mongoose/schema.js';
+import { checkUsername, createUser } from '../database.js';
 
 export const register = async (req, res) => {
   const { username, email, password, confirmPassword } = req.body;
-  let role = req.body.role;
+  let role = req.body.role || 'VOLUNTEER';
 
   if (role === 'admin') {
     return res.status(404).json({ message: "You can't have this role!" });
@@ -13,27 +13,17 @@ export const register = async (req, res) => {
   if (password !== confirmPassword)
     return res.status(400).json({ message: 'Passwords do not match!' });
 
-  if (!role) {
-    role = 'VOLUNTEER';
-  }
-
   try {
-    const existingUser = await User.findOne({ username });
+    const checkedUsername = await checkUsername(username);
+    console.log(checkedUsername);
 
-    if (existingUser) {
+    if (checkedUsername) {
       return res.status(409).json({ message: 'Username is already taken!' });
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const user = new User({
-      username,
-      email,
-      password: hashedPassword,
-      role,
-    });
-
-    await user.save();
+    await createUser(username, email, hashedPassword, role);
 
     res.status(201).json({ message: 'User created successfully' });
   } catch (err) {
@@ -46,7 +36,8 @@ export const login = async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    const user = await User.findOne({ username }).exec();
+    const user = await checkUsername(username);
+    console.log(user);
 
     if (!user) return res.status(400).json({ message: 'Invalid Credentials!' });
 
@@ -64,8 +55,7 @@ export const login = async (req, res) => {
       process.env.JWT_SECRET_KEY,
       { expiresIn: age }
     );
-    const userInfo = user.toObject();
-    delete userInfo.password;
+    const { password: userPassword, ...userInfo } = user;
 
     res
       .cookie('token', token, {

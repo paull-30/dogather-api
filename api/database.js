@@ -32,3 +32,21 @@ export async function getUsers() {
   const [users] = await pool.query('SELECT username, email, role FROM user');
   return users;
 }
+
+export async function updateUserInfo(id, fieldsToUpdate) {
+  const setClause = Object.keys(fieldsToUpdate)
+    .map((key) => `${key} = ?`)
+    .join(', ');
+  const values = [...Object.values(fieldsToUpdate), id];
+
+  const [result] = await pool.query(
+    `UPDATE user SET ${setClause} WHERE id = ?`,
+    values
+  );
+
+  return result;
+}
+
+export async function deleteUserByID(id) {
+  await pool.query('DELETE FROM user WHERE id = ?', [id]);
+}

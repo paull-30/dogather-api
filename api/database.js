@@ -50,3 +50,58 @@ export async function updateUserInfo(id, fieldsToUpdate) {
 export async function deleteUserByID(id) {
   await pool.query('DELETE FROM user WHERE id = ?', [id]);
 }
+
+export async function getPosts() {
+  const [posts] = await pool.query('SELECT * from post');
+  return posts;
+}
+
+export async function getPost(id) {
+  const [post] = await pool.query('SELECT * from post WHERE id = ?', [id]);
+  return post[0];
+}
+
+export async function newPost(
+  title,
+  description,
+  searching_for_skills,
+  status,
+  createdBy
+) {
+  try {
+    const result = await pool.query(
+      'INSERT INTO post (title, description, searching_for_skills, status, created_by) VALUES (?, ?, ?, ?, ?)',
+      [title, description, searching_for_skills, status, createdBy]
+    );
+
+    const insertId = result[0].insertId;
+
+    const [createdPost] = await pool.query('SELECT * FROM post WHERE id = ?', [
+      insertId,
+    ]);
+    return createdPost[0];
+  } catch (error) {
+    throw new Error('Failed to create new post: ' + error.message);
+  }
+}
+
+export async function updatePostById(
+  title,
+  description,
+  searching_for_skills,
+  status,
+  postID
+) {
+  try {
+    await pool.query(
+      'UPDATE post SET title = ?, description = ?, searching_for_skills = ?, status = ? WHERE id = ?',
+      [title, description, searching_for_skills, status, postID]
+    );
+  } catch (error) {
+    console.error('Error updating post:', error.message);
+  }
+}
+
+export async function deletePostById(id) {
+  await pool.query('DELETE FROM post WHERE id = ?', [id]);
+}

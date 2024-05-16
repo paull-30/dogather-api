@@ -91,10 +91,6 @@ export const deleteUser = async (req, res) => {
   }
 };
 
-export const applyToPost = async (req, res) => {
-  const userID = req.userId;
-};
-
 export const acceptPost = async (req, res) => {};
 
 export const getAcceptedPosts = async (req, res) => {};

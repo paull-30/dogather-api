@@ -131,3 +131,63 @@ export async function checkPostInvitation(postID, userID) {
   const invitationCount = rows[0].count;
   return invitationCount > 0;
 }
+
+export async function checkPostApplication(postID, userID) {
+  const query =
+    'SELECT COUNT(*) AS count FROM post_applications WHERE post_id = ? AND user_id = ?';
+  const [rows] = await pool.query(query, [postID, userID]);
+  const applicationCount = rows[0].count;
+  return applicationCount > 0;
+}
+
+export async function createPostApplication(postID, userID) {
+  await pool.query(
+    'INSERT INTO post_applications (post_id, user_id) VALUES (?, ?)',
+    [postID, userID]
+  );
+}
+
+export async function getUsersWhoApplied(postID) {
+  const query = `
+    SELECT u.id, u.username,u.bio,u.skills
+    FROM user u
+    JOIN post_applications pa ON u.id = pa.user_id
+    WHERE pa.post_id = ?
+  `;
+  const [rows] = await pool.query(query, [postID]);
+  return rows;
+}
+
+export async function removeUserApplication(connection, postID, userID) {
+  const query =
+    'DELETE FROM post_applications WHERE post_id = ? AND user_id = ?';
+  await connection.query(query, [postID, userID]);
+}
+
+export async function addUserAcceptance(connection, postID, userID) {
+  const query = 'INSERT INTO post_acceptances (post_id, user_id) VALUES (?, ?)';
+  await connection.query(query, [postID, userID]);
+}
+
+export async function acceptUsersApplications(postID, userID) {
+  let connection;
+  try {
+    connection = await pool.getConnection();
+    await connection.beginTransaction();
+
+    await removeUserApplication(connection, postID, userID);
+    await addUserAcceptance(connection, postID, userID);
+
+    await connection.commit();
+  } catch (error) {
+    if (connection) {
+      await connection.rollback();
+    }
+    console.error('Error with transaction:', error);
+    throw error;
+  } finally {
+    if (connection) {
+      connection.release();
+    }
+  }
+}

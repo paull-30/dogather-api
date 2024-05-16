@@ -1,11 +1,15 @@
 import {
+  acceptUsersApplications,
+  checkPostApplication,
   checkPostInvitation,
+  createPostApplication,
   createPostInvitation,
   deletePostById,
   getPost,
   getPosts,
   getUser,
   getUserByUsername,
+  getUsersWhoApplied,
   newPost,
   updatePostById,
 } from '../database.js';
@@ -166,11 +170,75 @@ export const inviteUser = async (req, res) => {
   }
 };
 
-export const acceptUser = async (req, res) => {};
+//APPLY TO POST : USER PERSPECTIVE
+export const applyToPost = async (req, res) => {
+  const userID = req.userId;
+  const postID = req.params.id;
+  if (!userID || !postID) {
+    return res.status(400).json({ message: 'Invalid request' });
+  }
+  try {
+    const post = await getPost(postID);
+    if (!post || post.status !== 'OPEN') {
+      return res
+        .status(403)
+        .json({ message: 'Post is not open for applications' });
+    }
+    const hasApplied = await checkPostApplication(postID, userID);
+    if (hasApplied) {
+      return res
+        .status(400)
+        .json({ message: 'You already applied to this post' });
+    }
+    await createPostApplication(postID, userID);
+    res.status(201).json({ message: `You applied to post ${post.title}` });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to apply to post' });
+  }
+};
 
-export const getUsersWorkingOnPost = async (req, res) => {};
+//DISPLAY USERS WHO APPLIED
+export const displayUsersWhoApplied = async (req, res) => {
+  const creatorID = req.userId;
+  const postID = req.params.id;
 
-export const getUsersBasedOnSkills = async (req, res) => {};
+  try {
+    const post = await getPost(postID);
+
+    if (creatorID !== String(post.created_by))
+      return res
+        .status(403)
+        .json({ message: 'You are not allowed to see these users' });
+    const usersApplied = await getUsersWhoApplied(postID);
+    res.status(200).json(usersApplied);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to display users who applied' });
+  }
+};
+
+export const acceptUserApplication = async (req, res) => {
+  const postID = req.params.id;
+  const creatorID = req.userId;
+  const userID = req.params.userID;
+
+  try {
+    const post = await getPost(postID);
+
+    if (creatorID !== String(post.created_by))
+      return res
+        .status(403)
+        .json({ message: 'You are not allowed to accept users' });
+
+    await acceptUsersApplications(postID, userID);
+    res.status(200).json({ message: 'User application accepted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to accept user application' });
+  }
+};
+
+export const displayUsersWorkingOnPost = async (req, res) => {};
+
+export const displayUsersBasedOnSkills = async (req, res) => {};
 /*
 
 

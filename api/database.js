@@ -37,7 +37,7 @@ export async function getUserByUsername(username) {
 
 export async function getUsers() {
   const [users] = await pool.query(
-    'SELECT username, email,bio, role, skills FROM user'
+    'SELECT id,username, email, bio, role, skills FROM user'
   );
   return users;
 }
@@ -160,24 +160,23 @@ export async function getUsersWhoApplied(postID) {
   return rows;
 }
 
-export async function removeUserApplication(connection, postID, userID) {
-  const query =
-    'DELETE FROM post_applications WHERE post_id = ? AND user_id = ?';
+export async function removeUserApplication(connection, postID, userID, table) {
+  const query = `DELETE FROM ${table} WHERE post_id = ? AND user_id = ?`;
   await connection.query(query, [postID, userID]);
 }
 
 export async function addUserAcceptance(connection, postID, userID) {
-  const query = 'INSERT INTO post_acceptances (post_id, user_id) VALUES (?, ?)';
+  const query = `INSERT INTO post_acceptances (post_id, user_id) VALUES (?, ?)`;
   await connection.query(query, [postID, userID]);
 }
 
-export async function acceptUsersApplications(postID, userID) {
+export async function acceptUsersApplications(postID, userID, table) {
   let connection;
   try {
     connection = await pool.getConnection();
     await connection.beginTransaction();
 
-    await removeUserApplication(connection, postID, userID);
+    await removeUserApplication(connection, postID, userID, table);
     await addUserAcceptance(connection, postID, userID);
 
     await connection.commit();
@@ -211,3 +210,25 @@ export const getUsersWorkingOnPost = async (postID) => {
     throw new Error('Failed to fetch users working on post');
   }
 };
+
+export async function getPostsWhichUserJoined(id) {
+  const query = `
+  SELECT p.id, p.title, p.description, p.status
+  FROM post_acceptances pa
+  INNER JOIN post p ON pa.post_id = p.id
+  WHERE pa.user_id = ?
+`;
+  const [acceptedPosts] = await pool.query(query, [id]);
+  return acceptedPosts;
+}
+
+export async function getInvitations(id) {
+  const query = `
+  SELECT p.id, p.title, p.description,p.searching_for_skills, p.status
+  FROM post_invitations pi
+  INNER JOIN post p ON pi.post_id = p.id
+  WHERE pi.user_id = ?
+`;
+  const [invitedPosts] = await pool.query(query, [id]);
+  return invitedPosts;
+}

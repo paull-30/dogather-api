@@ -232,13 +232,14 @@ export const acceptUserApplication = async (req, res) => {
         .status(403)
         .json({ message: 'You are not allowed to accept users' });
 
-    await acceptUsersApplications(postID, userID);
+    await acceptUsersApplications(postID, userID, 'post_applications');
     res.status(200).json({ message: 'User application accepted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to accept user application' });
   }
 };
 
+//DISPLAY USERS WORKING ON A POST
 export const displayUsersWorkingOnPost = async (req, res) => {
   const postID = req.params.id;
   const creatorID = req.userId;
@@ -262,6 +263,7 @@ export const displayUsersWorkingOnPost = async (req, res) => {
   }
 };
 
+//DISPLAY RECOMMENDED USERS FOR A POST
 export const displayUsersBasedOnSkills = async (req, res) => {
   const postID = req.params.id;
   try {
@@ -271,7 +273,7 @@ export const displayUsersBasedOnSkills = async (req, res) => {
     const requiredSkills = post.searching_for_skills;
 
     const matchedUsers = users.filter((user) => {
-      if (user.skills) {
+      if (user.skills && post.created_by !== user.id) {
         const matchingSkills = user.skills.filter((skill) =>
           requiredSkills.includes(skill)
         );

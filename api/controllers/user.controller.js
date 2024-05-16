@@ -90,3 +90,13 @@ export const deleteUser = async (req, res) => {
     res.status(500).json({ message: 'Failed to delete user' });
   }
 };
+
+export const applyToPost = async (req, res) => {
+  const userID = req.userId;
+};
+
+export const acceptPost = async (req, res) => {};
+
+export const getAcceptedPosts = async (req, res) => {};
+
+export const getPostsBasedOnSkills = async (req, res) => {};

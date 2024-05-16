@@ -28,6 +28,13 @@ export async function getUser(id) {
   return user[0];
 }
 
+export async function getUserByUsername(username) {
+  const [user] = await pool.query('SELECT id FROM user WHERE username = ?', [
+    username,
+  ]);
+  return user[0].id;
+}
+
 export async function getUsers() {
   const [users] = await pool.query('SELECT username, email, role FROM user');
   return users;
@@ -104,4 +111,23 @@ export async function updatePostById(
 
 export async function deletePostById(id) {
   await pool.query('DELETE FROM post WHERE id = ?', [id]);
+}
+
+export async function createPostInvitation(postID, userID) {
+  try {
+    await pool.query(
+      'INSERT INTO post_invitations (post_id, user_id) VALUES (?, ?)',
+      [postID, userID]
+    );
+  } catch (error) {
+    throw error;
+  }
+}
+
+export async function checkPostInvitation(postID, userID) {
+  const query =
+    'SELECT COUNT(*) AS count FROM post_invitations WHERE post_id = ? AND user_id = ?';
+  const [rows] = await pool.query(query, [postID, userID]);
+  const invitationCount = rows[0].count;
+  return invitationCount > 0;
 }

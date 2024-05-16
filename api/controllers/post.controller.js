@@ -1,8 +1,11 @@
 import {
+  checkPostInvitation,
+  createPostInvitation,
   deletePostById,
   getPost,
   getPosts,
   getUser,
+  getUserByUsername,
   newPost,
   updatePostById,
 } from '../database.js';
@@ -118,7 +121,7 @@ export const deletePost = async (req, res) => {
     if (user.id !== post.created_by) {
       return res
         .status(403)
-        .json({ message: 'You are not allowed to update this post.' });
+        .json({ message: 'You are not allowed to delete this post.' });
     }
     await deletePostById(postID);
     res.status(200).json({ message: 'Post deleted successfully' });
@@ -126,3 +129,67 @@ export const deletePost = async (req, res) => {
     res.status(500).json({ message: 'Failed to delete post' });
   }
 };
+
+//POST INVITATION
+export const inviteUser = async (req, res) => {
+  const postCreator = req.userId;
+  const username = req.params.username;
+  const postID = Number(req.params.id);
+
+  if (!username || !postID)
+    return res.status(400).json({ message: 'Invalid request' });
+  try {
+    const post = await getPost(postID);
+    if (!post || postCreator !== String(post.created_by)) {
+      console.log(post.created_by);
+      return res
+        .status(403)
+        .json({ message: 'You are not allowed to invite on this post' });
+    }
+    const userID = await getUserByUsername(username);
+    if (!userID) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+    const isInvited = await checkPostInvitation(postID, userID);
+
+    if (isInvited) {
+      return res
+        .status(400)
+        .json({ message: 'User is already invited to this post' });
+    }
+    await createPostInvitation(postID, userID);
+    res
+      .status(201)
+      .json({ message: `Invited user ${username} to post ${postID}` });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to invite user to post' });
+  }
+};
+
+export const acceptUser = async (req, res) => {};
+
+export const getUsersWorkingOnPost = async (req, res) => {};
+
+export const getUsersBasedOnSkills = async (req, res) => {};
+/*
+
+
+APPLY USER
+- get postID
+- get post
+-add post to applied_posts
+-add user to users_applied
+
+ACCEPT:USER
+-get post from invited
+-get post
+-save user to users_accepted on post
+-delete post from invited
+-add posts on user joined
+
+ACCEPT:ORGANIZER
+- get user from users_applied
+- add user to users_accepted
+- delete user from users_applied
+- add post on user joined
+ */

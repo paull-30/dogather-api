@@ -36,7 +36,9 @@ export async function getUserByUsername(username) {
 }
 
 export async function getUsers() {
-  const [users] = await pool.query('SELECT username, email, role FROM user');
+  const [users] = await pool.query(
+    'SELECT username, email,bio, role, skills FROM user'
+  );
   return users;
 }
 
@@ -191,3 +193,21 @@ export async function acceptUsersApplications(postID, userID) {
     }
   }
 }
+
+export const getUsersWorkingOnPost = async (postID) => {
+  try {
+    const query = `
+      SELECT u.id, u.username, u.email, u.bio,u.skills
+      FROM post_acceptances pa
+      JOIN user u ON pa.user_id = u.id
+      WHERE pa.post_id = ?
+    `;
+
+    const [users] = await pool.query(query, [postID]);
+
+    return users;
+  } catch (error) {
+    console.error('Failed to fetch users working on post:', error);
+    throw new Error('Failed to fetch users working on post');
+  }
+};

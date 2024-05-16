@@ -5,7 +5,9 @@ import {
   applyToPost,
   createPost,
   deletePost,
+  displayUsersBasedOnSkills,
   displayUsersWhoApplied,
+  displayUsersWorkingOnPost,
   getAllPosts,
   getPostById,
   inviteUser,
@@ -16,6 +18,8 @@ const router = express.Router();
 
 router.get('/', verifyToken, getAllPosts);
 router.get('/:id/applicants', verifyToken, displayUsersWhoApplied);
+router.get('/:id/accepted', verifyToken, displayUsersWorkingOnPost);
+router.get('/:id/recommended', verifyToken, displayUsersBasedOnSkills);
 router.get('/:id', verifyToken, getPostById);
 
 router.post('/create', verifyToken, createPost);

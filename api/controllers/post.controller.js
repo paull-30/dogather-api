@@ -9,7 +9,9 @@ import {
   getPosts,
   getUser,
   getUserByUsername,
+  getUsers,
   getUsersWhoApplied,
+  getUsersWorkingOnPost,
   newPost,
   updatePostById,
 } from '../database.js';
@@ -216,6 +218,7 @@ export const displayUsersWhoApplied = async (req, res) => {
   }
 };
 
+//ACCEPT USERS WHO APPLIED
 export const acceptUserApplication = async (req, res) => {
   const postID = req.params.id;
   const creatorID = req.userId;
@@ -236,28 +239,53 @@ export const acceptUserApplication = async (req, res) => {
   }
 };
 
-export const displayUsersWorkingOnPost = async (req, res) => {};
+export const displayUsersWorkingOnPost = async (req, res) => {
+  const postID = req.params.id;
+  const creatorID = req.userId;
+  try {
+    const post = await getPost(postID);
 
-export const displayUsersBasedOnSkills = async (req, res) => {};
-/*
+    if (creatorID !== String(post.created_by))
+      return res
+        .status(403)
+        .json({ message: 'You are not allowed to see users for this post!' });
 
+    const users = await getUsersWorkingOnPost(postID);
 
-APPLY USER
-- get postID
-- get post
--add post to applied_posts
--add user to users_applied
+    if (users.length === 0) {
+      return res.status(404).json({ message: 'No users working on this post' });
+    }
 
-ACCEPT:USER
--get post from invited
--get post
--save user to users_accepted on post
--delete post from invited
--add posts on user joined
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch users working on post' });
+  }
+};
 
-ACCEPT:ORGANIZER
-- get user from users_applied
-- add user to users_accepted
-- delete user from users_applied
-- add post on user joined
- */
+export const displayUsersBasedOnSkills = async (req, res) => {
+  const postID = req.params.id;
+  try {
+    const users = await getUsers();
+    const post = await getPost(postID);
+
+    const requiredSkills = post.searching_for_skills;
+
+    const matchedUsers = users.filter((user) => {
+      if (user.skills) {
+        const matchingSkills = user.skills.filter((skill) =>
+          requiredSkills.includes(skill)
+        );
+        return matchingSkills.length >= 2;
+      }
+      return false;
+    });
+    if (matchedUsers.length === 0) {
+      return res
+        .status(404)
+        .json({ message: 'No users available with the required skills.' });
+    }
+    res.status(200).json(matchedUsers);
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to fetch users based on skills' });
+  }
+};

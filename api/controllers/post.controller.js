@@ -1,5 +1,4 @@
 import {
-  acceptUsersApplications,
   checkPostApplication,
   checkPostInvitation,
   createPostApplication,
@@ -7,14 +6,15 @@ import {
   deletePostById,
   getPost,
   getPosts,
-  getUser,
   getUserByUsername,
   getUsers,
   getUsersWhoApplied,
-  getUsersWorkingOnPost,
   newPost,
   updatePostById,
+  getUsersWorkingOnPost,
 } from '../database.js';
+
+import { getUser, acceptUsersApplications } from '../services/user.queries.js';
 
 //GET ALL POSTS
 export const getAllPosts = async (req, res) => {

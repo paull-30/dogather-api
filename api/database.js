@@ -1,33 +1,3 @@
-import mysql from 'mysql2';
-
-const pool = mysql
-  .createPool({
-    host: process.env.MYSQL_HOST,
-    user: process.env.MYSQL_USER,
-    password: process.env.MYSQL_PASSWORD,
-    database: process.env.MYSQL_DATABASE,
-  })
-  .promise();
-
-export async function checkUsername(username) {
-  const [rows] = await pool.query('SELECT * FROM user WHERE username = ?', [
-    username,
-  ]);
-  return rows[0];
-}
-
-export async function createUser(username, email, hPassword, role) {
-  await pool.query(
-    'INSERT INTO user (username, email, password, role) VALUES (?,?,?,?)',
-    [username, email, hPassword, role]
-  );
-}
-
-export async function getUser(id) {
-  const [user] = await pool.query('SELECT * FROM user WHERE id = ?', [id]);
-  return user[0];
-}
-
 export async function getUserByUsername(username) {
   const [user] = await pool.query('SELECT id FROM user WHERE username = ?', [
     username,
@@ -40,24 +10,6 @@ export async function getUsers() {
     'SELECT id,username, email, bio, role, skills FROM user'
   );
   return users;
-}
-
-export async function updateUserInfo(id, fieldsToUpdate) {
-  const setClause = Object.keys(fieldsToUpdate)
-    .map((key) => `${key} = ?`)
-    .join(', ');
-  const values = [...Object.values(fieldsToUpdate), id];
-
-  const [result] = await pool.query(
-    `UPDATE user SET ${setClause} WHERE id = ?`,
-    values
-  );
-
-  return result;
-}
-
-export async function deleteUserByID(id) {
-  await pool.query('DELETE FROM user WHERE id = ?', [id]);
 }
 
 export async function getPosts() {
@@ -160,47 +112,14 @@ export async function getUsersWhoApplied(postID) {
   return rows;
 }
 
-export async function removeUserApplication(connection, postID, userID, table) {
-  const query = `DELETE FROM ${table} WHERE post_id = ? AND user_id = ?`;
-  await connection.query(query, [postID, userID]);
-}
-
-export async function addUserAcceptance(connection, postID, userID) {
-  const query = `INSERT INTO post_acceptances (post_id, user_id) VALUES (?, ?)`;
-  await connection.query(query, [postID, userID]);
-}
-
-export async function acceptUsersApplications(postID, userID, table) {
-  let connection;
-  try {
-    connection = await pool.getConnection();
-    await connection.beginTransaction();
-
-    await removeUserApplication(connection, postID, userID, table);
-    await addUserAcceptance(connection, postID, userID);
-
-    await connection.commit();
-  } catch (error) {
-    if (connection) {
-      await connection.rollback();
-    }
-    console.error('Error with transaction:', error);
-    throw error;
-  } finally {
-    if (connection) {
-      connection.release();
-    }
-  }
-}
-
 export const getUsersWorkingOnPost = async (postID) => {
   try {
     const query = `
-      SELECT u.id, u.username, u.email, u.bio,u.skills
-      FROM post_acceptances pa
-      JOIN user u ON pa.user_id = u.id
-      WHERE pa.post_id = ?
-    `;
+        SELECT u.id, u.username, u.email, u.bio,u.skills
+        FROM post_acceptances pa
+        JOIN user u ON pa.user_id = u.id
+        WHERE pa.post_id = ?
+      `;
 
     const [users] = await pool.query(query, [postID]);
 
@@ -210,25 +129,3 @@ export const getUsersWorkingOnPost = async (postID) => {
     throw new Error('Failed to fetch users working on post');
   }
 };
-
-export async function getPostsWhichUserJoined(id) {
-  const query = `
-  SELECT p.id, p.title, p.description, p.status
-  FROM post_acceptances pa
-  INNER JOIN post p ON pa.post_id = p.id
-  WHERE pa.user_id = ?
-`;
-  const [acceptedPosts] = await pool.query(query, [id]);
-  return acceptedPosts;
-}
-
-export async function getInvitations(id) {
-  const query = `
-  SELECT p.id, p.title, p.description,p.searching_for_skills, p.status
-  FROM post_invitations pi
-  INNER JOIN post p ON pi.post_id = p.id
-  WHERE pi.user_id = ?
-`;
-  const [invitedPosts] = await pool.query(query, [id]);
-  return invitedPosts;
-}

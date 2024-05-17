@@ -1,6 +1,12 @@
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { checkUsername, createUser } from '../database.js';
+import { v4 as uuidv4 } from 'uuid';
+import {
+  checkEmail,
+  checkUsername,
+  createUser,
+  getSkills,
+} from '../services/user.queries.js';
 
 export const register = async (req, res) => {
   const { username, email, password, confirmPassword } = req.body;
@@ -15,15 +21,19 @@ export const register = async (req, res) => {
 
   try {
     const checkedUsername = await checkUsername(username);
-    console.log(checkedUsername);
 
     if (checkedUsername) {
       return res.status(409).json({ message: 'Username is already taken!' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const checkedEmail = await checkEmail(email);
+    if (checkedEmail) {
+      return res.status(409).json({ message: 'Email already registered!' });
+    }
 
-    await createUser(username, email, hashedPassword, role);
+    const hashedPassword = await bcrypt.hash(password, 10);
+    const userId = uuidv4();
+    await createUser(userId, username, email, hashedPassword, role);
 
     res.status(201).json({ message: 'User created successfully' });
   } catch (err) {
@@ -37,7 +47,7 @@ export const login = async (req, res) => {
 
   try {
     const user = await checkUsername(username);
-    console.log(user);
+    const { skills } = await getSkills(user.id);
 
     if (!user) return res.status(400).json({ message: 'Invalid Credentials!' });
 
@@ -64,7 +74,7 @@ export const login = async (req, res) => {
         maxAge: age,
       })
       .status(200)
-      .json(userInfo);
+      .json({ ...userInfo, skills });
   } catch (err) {
     console.log(err);
     res.status(500).json({ message: 'Failed to login!' });

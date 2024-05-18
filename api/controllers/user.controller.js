@@ -1,14 +1,24 @@
 import {
+  updateSkills,
   acceptUsersApplications,
+  rejectInvitation,
+} from '../services/common.queries.js';
+import {
   checkUsername,
+  getUser,
+  updateUserInfo,
   deleteUserByID,
   getInvitations,
-  getPosts,
   getPostsWhichUserJoined,
-  getUser,
+  isUserAccepted,
+  getSkills,
+  compareUserSkills,
   getUsers,
-  updateUserInfo,
-} from '../database.js';
+  getPostInvitation,
+} from '../services/user.queries.js';
+
+import { getPost } from '../services/post.queries.js';
+
 import bcrypt from 'bcrypt';
 
 //ADMIN ROUTE : GET ALL USERS
@@ -59,20 +69,24 @@ export const updateUser = async (req, res) => {
     if (email) fieldsToUpdate.email = email;
     if (bio) fieldsToUpdate.bio = bio;
     if (role) fieldsToUpdate.role = role;
-    if (skills) fieldsToUpdate.skills = JSON.stringify([...skills]);
     if (password) {
       fieldsToUpdate.password = await bcrypt.hash(password, 10);
     }
 
-    const result = await updateUserInfo(userID, fieldsToUpdate);
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ message: 'User not found' });
+    if (Object.keys(fieldsToUpdate).length > 0) {
+      const result = await updateUserInfo(userID, fieldsToUpdate);
+      if (result.affectedRows === 0) {
+        return res.status(404).json({ message: 'User not found' });
+      }
     }
-    const user = await getUser(userID);
-    console.log(user);
-    const { password: userPassword, ...userInfo } = user;
 
-    res.status(200).json(userInfo);
+    if (skills && skills.length > 0) {
+      await updateSkills(userID, skills, 'users_skills', 'user_id');
+    }
+
+    const user = await getUser(userID);
+
+    res.status(200).json(user);
   } catch (error) {
     res.status(500).json({ message: 'Failed to update user!' });
   }
@@ -98,23 +112,10 @@ export const deleteUser = async (req, res) => {
   }
 };
 
-//ACCEPT A POST INVITATION
-export const acceptPost = async (req, res) => {
-  const userID = req.userId;
-  const postID = req.params.postId;
-  console.log(userID);
-  console.log(postID);
-  try {
-    await acceptUsersApplications(postID, userID, 'post_invitations');
-    res.status(200).json({ message: 'Post accepted successfully' });
-  } catch (error) {
-    res.status(500).json({ message: 'Failed to accept post invitation!' });
-  }
-};
-
 //DISPLAY ALL INVITATIONS
 export const displayInvitations = async (req, res) => {
   const userId = req.userId;
+  console.log(userId);
   try {
     const invitations = await getInvitations(userId);
     if (invitations.length === 0) {
@@ -123,6 +124,51 @@ export const displayInvitations = async (req, res) => {
     res.status(200).json(invitations);
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch invitations' });
+  }
+};
+
+//ACCEPT A POST INVITATION
+export const acceptPost = async (req, res) => {
+  const userID = req.userId;
+  const postID = req.params.postId;
+
+  try {
+    const isAccepted = await isUserAccepted(postID, userID);
+    if (isAccepted) {
+      return res
+        .status(400)
+        .json({ message: 'User is already accepted for this post' });
+    }
+    await acceptUsersApplications(postID, userID, 'post_invitations');
+    res.status(200).json({ message: 'Post accepted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Failed to accept post invitation!' });
+  }
+};
+
+//REJECT A POST INVITATION
+export const rejectPostInvitation = async (req, res) => {
+  const userID = req.userId;
+  const postID = req.params.postId;
+
+  try {
+    const post = await getPost(postID);
+
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+    const invitation = await getPostInvitation(postID, userID);
+    if (!invitation) {
+      return res
+        .status(404)
+        .json({ message: 'Invitation not found or unauthorized' });
+    }
+    if (invitation.status === 'rejected')
+      res.status(400).json({ message: 'Invitation rejected already' });
+    await rejectInvitation(postID, userID, 'post_invitations');
+    res.status(200).json({ message: 'Post rejected successfully!' });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: `Failed to reject post invitation.${error}` });
   }
 };
 
@@ -147,29 +193,15 @@ export const displayPostsBasedOnUserSkills = async (req, res) => {
   const userId = req.userId;
 
   try {
-    const user = await getUser(userId);
-    const posts = await getPosts();
-
-    const userSkills = user.skills;
-
-    const matchedPosts = posts.filter((post) => {
-      if (post.searching_for_skills && String(post.created_by) !== userId) {
-        const requiredSkills = post.searching_for_skills;
-        const matchingSkills = requiredSkills.filter((skill) =>
-          userSkills.includes(skill)
-        );
-        return matchingSkills.length >= 2;
-      }
-      return false;
-    });
-
-    if (matchedPosts.length === 0) {
+    const { skills } = await getSkills(userId);
+    const posts = await compareUserSkills(skills);
+    if (posts.length === 0) {
       return res
         .status(404)
         .json({ message: 'No posts available matching your skills.' });
     }
 
-    res.status(200).json(matchedPosts);
+    res.status(200).json(posts);
   } catch (error) {
     res
       .status(500)

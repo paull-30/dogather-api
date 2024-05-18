@@ -1,20 +1,31 @@
 import {
-  acceptUsersApplications,
-  checkPostApplication,
-  checkPostInvitation,
-  createPostApplication,
-  createPostInvitation,
-  deletePostById,
+  getUsers,
+  getUserByUsername,
+  getUser,
+} from '../services/user.queries.js';
+
+import {
+  createPost,
   getPost,
   getPosts,
-  getUser,
-  getUserByUsername,
-  getUsers,
+  updatePostById,
+  deletePostById,
+  checkPostInvitation,
+  createPostInvitation,
+  checkPostApplication,
+  createPostApplication,
   getUsersWhoApplied,
   getUsersWorkingOnPost,
-  newPost,
-  updatePostById,
-} from '../database.js';
+  comparePostSkills,
+} from '../services/post.queries.js';
+
+import { v4 as uuidv4 } from 'uuid';
+import { validatePostForUser } from '../services/validation.js';
+import {
+  updateSkills,
+  acceptUsersApplications,
+  rejectInvitation,
+} from '../services/common.queries.js';
 
 //GET ALL POSTS
 export const getAllPosts = async (req, res) => {
@@ -54,7 +65,7 @@ export const getPostById = async (req, res) => {
 };
 
 //CREATE POST
-export const createPost = async (req, res) => {
+export const createNewPost = async (req, res) => {
   const userID = req.userId;
   const { title, description } = req.body;
   let searching_for_skills = req.body.searching_for_skills;
@@ -64,18 +75,18 @@ export const createPost = async (req, res) => {
   }
 
   const status = 'OPEN';
-  searching_for_skills = JSON.stringify(searching_for_skills);
+  const postId = uuidv4();
 
   try {
-    const post = await newPost(
+    const post = await createPost(
+      postId,
       title,
       description,
-      searching_for_skills,
       status,
-      userID
+      userID,
+      searching_for_skills
     );
-
-    res.status(201).json({ post, message: 'Post created successfully.' });
+    res.status(201).json(post);
   } catch (error) {
     console.error('Error creating the post:', error);
     res.status(500).json({ message: 'Failed to create post!' });
@@ -87,30 +98,25 @@ export const updatePost = async (req, res) => {
   const postID = req.params.id;
   const userID = req.userId;
 
-  const { title, description, status } = req.body;
-  const searching_for_skills = JSON.stringify(req.body.searching_for_skills);
+  const { title, description, status, searching_for_skills } = req.body;
 
   if (!title || !description || !searching_for_skills || !status) {
     return res.status(400).json({ message: 'Missing required fields.' });
   }
   try {
-    const user = await getUser(userID);
-    const post = await getPost(postID);
-    if (user.id !== post.created_by) {
-      return res
-        .status(403)
-        .json({ message: 'You are not allowed to update this post.' });
+    await validatePostForUser(postID, userID);
+    await updatePostById(title, description, status, postID);
+    if (searching_for_skills.length > 0) {
+      await updateSkills(
+        postID,
+        searching_for_skills,
+        'posts_skills',
+        'post_id'
+      );
     }
-    await updatePostById(
-      title,
-      description,
-      searching_for_skills,
-      status,
-      postID
-    );
     res.status(200).json('Post updated succesfully.');
   } catch (error) {
-    res.status(404).json({ message: 'Failed to update post' });
+    res.status(404).json({ message: `Failed to update post.${error}` });
   }
 };
 
@@ -119,20 +125,12 @@ export const deletePost = async (req, res) => {
   const postID = req.params.id;
   const userID = req.userId;
 
-  if (!userID) return res.status(400).json({ message: 'Invalid user ID' });
-
   try {
-    const user = await getUser(userID);
-    const post = await getPost(postID);
-    if (user.id !== post.created_by) {
-      return res
-        .status(403)
-        .json({ message: 'You are not allowed to delete this post.' });
-    }
+    await validatePostForUser(postID, userID);
     await deletePostById(postID);
     res.status(200).json({ message: 'Post deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to delete post' });
+    res.status(500).json({ message: `Failed to delete post.${error}` });
   }
 };
 
@@ -140,18 +138,12 @@ export const deletePost = async (req, res) => {
 export const inviteUser = async (req, res) => {
   const postCreator = req.userId;
   const username = req.params.username;
-  const postID = Number(req.params.id);
+  const postID = req.params.id;
 
   if (!username || !postID)
     return res.status(400).json({ message: 'Invalid request' });
   try {
-    const post = await getPost(postID);
-    if (!post || postCreator !== String(post.created_by)) {
-      console.log(post.created_by);
-      return res
-        .status(403)
-        .json({ message: 'You are not allowed to invite on this post' });
-    }
+    await validatePostForUser(postID, postCreator);
     const userID = await getUserByUsername(username);
     if (!userID) {
       return res.status(404).json({ message: 'User not found' });
@@ -168,7 +160,7 @@ export const inviteUser = async (req, res) => {
       .status(201)
       .json({ message: `Invited user ${username} to post ${postID}` });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to invite user to post' });
+    res.status(500).json({ message: `Failed to invite user to post.${error}` });
   }
 };
 
@@ -181,11 +173,17 @@ export const applyToPost = async (req, res) => {
   }
   try {
     const post = await getPost(postID);
-    if (!post || post.status !== 'OPEN') {
+    if (!post) return res.status(404).json({ message: 'Invalid post' });
+    if (post.created_by === userID)
+      return res
+        .status(403)
+        .json({ message: 'You are not allowed to apply to your own post!' });
+    if (post.status !== 'OPEN') {
       return res
         .status(403)
         .json({ message: 'Post is not open for applications' });
     }
+
     const hasApplied = await checkPostApplication(postID, userID);
     if (hasApplied) {
       return res
@@ -207,14 +205,13 @@ export const displayUsersWhoApplied = async (req, res) => {
   try {
     const post = await getPost(postID);
 
-    if (creatorID !== String(post.created_by))
-      return res
-        .status(403)
-        .json({ message: 'You are not allowed to see these users' });
+    await validatePostForUser(postID, creatorID);
     const usersApplied = await getUsersWhoApplied(postID);
     res.status(200).json(usersApplied);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to display users who applied' });
+    res
+      .status(500)
+      .json({ message: `Failed to display users who applied.${error}` });
   }
 };
 
@@ -225,17 +222,34 @@ export const acceptUserApplication = async (req, res) => {
   const userID = req.params.userID;
 
   try {
-    const post = await getPost(postID);
-
-    if (creatorID !== String(post.created_by))
-      return res
-        .status(403)
-        .json({ message: 'You are not allowed to accept users' });
+    await validatePostForUser(postID, creatorID);
+    const user = await getUser(userID);
+    if (!user) return res.status(404).json({ message: 'User not found' });
 
     await acceptUsersApplications(postID, userID, 'post_applications');
     res.status(200).json({ message: 'User application accepted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to accept user application' });
+    res
+      .status(500)
+      .json({ message: `Failed to accept user application.${error}` });
+  }
+};
+
+//REJECT USERS WHO APPLIED
+export const rejectUserApplication = async (req, res) => {
+  const postID = req.params.id;
+  const creatorID = req.userId;
+  const userID = req.params.userID;
+  try {
+    await validatePostForUser(postID, creatorID);
+    const user = await getUser(userID);
+    if (!user) return res.status(404).json({ message: 'User not found' });
+    await rejectInvitation(postID, userID, 'post_applications');
+    res.status(200).json({ message: 'User rejected successfully!' });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: `Failed to reject user application.${error}` });
   }
 };
 
@@ -244,12 +258,7 @@ export const displayUsersWorkingOnPost = async (req, res) => {
   const postID = req.params.id;
   const creatorID = req.userId;
   try {
-    const post = await getPost(postID);
-
-    if (creatorID !== String(post.created_by))
-      return res
-        .status(403)
-        .json({ message: 'You are not allowed to see users for this post!' });
+    await validatePostForUser(postID, creatorID);
 
     const users = await getUsersWorkingOnPost(postID);
 
@@ -259,35 +268,30 @@ export const displayUsersWorkingOnPost = async (req, res) => {
 
     res.status(200).json(users);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch users working on post' });
+    res
+      .status(500)
+      .json({ message: `Failed to fetch users working on post.${error}` });
   }
 };
 
 //DISPLAY RECOMMENDED USERS FOR A POST
 export const displayUsersBasedOnSkills = async (req, res) => {
   const postID = req.params.id;
+  const userID = req.userId;
+
   try {
-    const users = await getUsers();
-    const post = await getPost(postID);
-
-    const requiredSkills = post.searching_for_skills;
-
-    const matchedUsers = users.filter((user) => {
-      if (user.skills && post.created_by !== user.id) {
-        const matchingSkills = user.skills.filter((skill) =>
-          requiredSkills.includes(skill)
-        );
-        return matchingSkills.length >= 2;
-      }
-      return false;
-    });
-    if (matchedUsers.length === 0) {
+    await validatePostForUser(postID, userID);
+    const users = await comparePostSkills(postID);
+    if (users.length === 0) {
       return res
         .status(404)
-        .json({ message: 'No users available with the required skills.' });
+        .json({ message: 'No users available matching post skills.' });
     }
-    res.status(200).json(matchedUsers);
+
+    res.status(200).json(users);
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch users based on skills' });
+    res
+      .status(500)
+      .json({ message: `Failed to fetch users based on post skills.${error}` });
   }
 };

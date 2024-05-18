@@ -27,6 +27,19 @@ export const getSkills = async (id) => {
   }
 };
 
+//GET USER BY USERNAME
+export const getUserByUsername = async (username) => {
+  try {
+    const [user] = await pool.query('SELECT id FROM user WHERE username = ?', [
+      username,
+    ]);
+    return user[0]?.id;
+  } catch (error) {
+    console.error(error);
+    throw error;
+  }
+};
+
 //CHECK EMAIL IF ALREADY EXISTS
 export const checkEmail = async (email) => {
   try {
@@ -84,37 +97,6 @@ export const updateUserInfo = async (id, fieldsToUpdate) => {
   }
 };
 
-//UPDATE USER SKILLS
-export const updateUserSkills = async (userId, skills) => {
-  let connection;
-  try {
-    connection = await pool.getConnection();
-    await connection.beginTransaction();
-
-    await connection.query('DELETE FROM users_skills WHERE user_id = ?', [
-      userId,
-    ]);
-
-    const skillValues = skills.map((skill) => [userId, skill]);
-    const insertQuery = 'INSERT INTO users_skills (user_id, skill) VALUES ?';
-    await connection.query(insertQuery, [skillValues]);
-
-    await connection.commit();
-
-    return { success: true };
-  } catch (error) {
-    if (connection) {
-      await connection.rollback();
-    }
-    console.error('Failed to update user skills:', error);
-    throw error;
-  } finally {
-    if (connection) {
-      connection.release();
-    }
-  }
-};
-
 //DELETE USER
 export const deleteUserByID = async (id) => {
   try {
@@ -143,6 +125,23 @@ export const getInvitations = async (id) => {
   }
 };
 
+//GET INVITATIONS FROM A POST (CHECK IF USER WHO REQUESTED HAS THE INVITATION)
+export const getPostInvitation = async (postID, userID) => {
+  try {
+    const query = `
+      SELECT *
+      FROM post_invitations
+      WHERE post_id = ? AND user_id = ?
+    `;
+    const [invitation] = await pool.query(query, [postID, userID]);
+
+    return invitation[0];
+  } catch (error) {
+    console.error('Failed to get post invitation:', error);
+    throw error;
+  }
+};
+
 //CHECK IF USER IS ALREADY ACCEPTED IN A POST
 export const isUserAccepted = async (postID, userID) => {
   try {
@@ -153,47 +152,6 @@ export const isUserAccepted = async (postID, userID) => {
   } catch (error) {
     console.error('Failed to see if user is accepted');
     throw error;
-  }
-};
-
-//UPDATE INVITATION STATUS
-const updateUserApplicationStatus = async (
-  connection,
-  postID,
-  userID,
-  table
-) => {
-  const query = `UPDATE ${table} SET status = ? WHERE post_id = ? AND user_id = ?`;
-  await connection.query(query, ['accepted', postID, userID]);
-};
-
-//INSERT USER TO POST WORKING AREA (post_acceptances)
-const addUserAcceptance = async (connection, postID, userID) => {
-  const query = `INSERT INTO post_acceptances (post_id, user_id) VALUES (?, ?)`;
-  await connection.query(query, [postID, userID]);
-};
-
-//ACCEPT POST INVITATION
-export const acceptUsersApplications = async (postID, userID, table) => {
-  let connection;
-  try {
-    connection = await pool.getConnection();
-    await connection.beginTransaction();
-
-    await updateUserApplicationStatus(connection, postID, userID, table);
-    await addUserAcceptance(connection, postID, userID);
-
-    await connection.commit();
-  } catch (error) {
-    if (connection) {
-      await connection.rollback();
-    }
-    console.error('Error with transaction:', error);
-    throw error;
-  } finally {
-    if (connection) {
-      connection.release();
-    }
   }
 };
 
@@ -238,3 +196,15 @@ export const compareUserSkills = async (skills) => {
     throw error;
   }
 };
+
+//ADMIN GET USERS
+export async function getUsers() {
+  const query = `
+    SELECT u.id, u.username, u.email, u.bio, u.role, GROUP_CONCAT(us.skill) AS skills
+    FROM user u
+    LEFT JOIN users_skills us ON u.id = us.user_id
+    GROUP BY u.id;
+  `;
+  const [users] = await pool.query(query);
+  return users;
+}

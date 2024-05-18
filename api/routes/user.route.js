@@ -7,6 +7,7 @@ import {
   getAcceptedPosts,
   displayInvitations,
   acceptPost,
+  rejectPostInvitation,
 } from '../controllers/user.controller.js';
 import { verifyToken } from '../middleware/verifyToken.js';
 
@@ -18,6 +19,7 @@ router.get('/accepted', verifyToken, getAcceptedPosts);
 router.get('/invitations', verifyToken, displayInvitations);
 
 router.post('/accept/:postId', verifyToken, acceptPost);
+router.post('/reject/:postId', verifyToken, rejectPostInvitation);
 
 router.put('/:userID', verifyToken, updateUser);
 

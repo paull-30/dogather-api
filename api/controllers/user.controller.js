@@ -1,17 +1,24 @@
-import { getPosts, getUsers } from '../database.js';
+import {
+  updateSkills,
+  acceptUsersApplications,
+  rejectInvitation,
+} from '../services/common.queries.js';
 import {
   checkUsername,
   getUser,
   updateUserInfo,
-  updateUserSkills,
   deleteUserByID,
   getInvitations,
-  acceptUsersApplications,
   getPostsWhichUserJoined,
   isUserAccepted,
   getSkills,
   compareUserSkills,
+  getUsers,
+  getPostInvitation,
 } from '../services/user.queries.js';
+
+import { getPost } from '../services/post.queries.js';
+
 import bcrypt from 'bcrypt';
 
 //ADMIN ROUTE : GET ALL USERS
@@ -74,7 +81,7 @@ export const updateUser = async (req, res) => {
     }
 
     if (skills && skills.length > 0) {
-      await updateUserSkills(userID, skills);
+      await updateSkills(userID, skills, 'users_skills', 'user_id');
     }
 
     const user = await getUser(userID);
@@ -136,6 +143,32 @@ export const acceptPost = async (req, res) => {
     res.status(200).json({ message: 'Post accepted successfully' });
   } catch (error) {
     res.status(500).json({ message: 'Failed to accept post invitation!' });
+  }
+};
+
+//REJECT A POST INVITATION
+export const rejectPostInvitation = async (req, res) => {
+  const userID = req.userId;
+  const postID = req.params.postId;
+
+  try {
+    const post = await getPost(postID);
+
+    if (!post) return res.status(404).json({ message: 'Post not found' });
+    const invitation = await getPostInvitation(postID, userID);
+    if (!invitation) {
+      return res
+        .status(404)
+        .json({ message: 'Invitation not found or unauthorized' });
+    }
+    if (invitation.status === 'rejected')
+      res.status(400).json({ message: 'Invitation rejected already' });
+    await rejectInvitation(postID, userID, 'post_invitations');
+    res.status(200).json({ message: 'Post rejected successfully!' });
+  } catch (error) {
+    res
+      .status(500)
+      .json({ message: `Failed to reject post invitation.${error}` });
   }
 };
 

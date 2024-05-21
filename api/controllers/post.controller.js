@@ -1,8 +1,4 @@
-import {
-  getUsers,
-  getUserByUsername,
-  getUser,
-} from '../services/user.queries.js';
+import { getUserByUsername, getUser } from '../services/user.queries.js';
 
 import {
   createPost,

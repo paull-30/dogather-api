@@ -12,7 +12,7 @@ export const register = async (req, res) => {
   const { username, email, password, confirmPassword } = req.body;
   let role = req.body.role || 'VOLUNTEER';
 
-  if (role === 'admin') {
+  if (role === 'ADMIN') {
     return res.status(404).json({ message: "You can't have this role!" });
   }
 

@@ -9,7 +9,6 @@ import {
   updateTaskById,
 } from '../services/task.queries.js';
 import { validatePostForUser } from '../services/validation.js';
-import { getPost } from '../services/post.queries.js';
 
 //DISPLAY ALL TASKS
 export const displayTasks = async (req, res) => {

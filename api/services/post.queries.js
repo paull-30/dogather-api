@@ -12,7 +12,7 @@ export const getPosts = async () => {
 };
 
 //GET A POST BY ID
-export async function getPost(id) {
+export const getPost = async (id) => {
   try {
     const [post] = await pool.query('SELECT * from post WHERE id = ?', [id]);
     return post[0];
@@ -20,7 +20,7 @@ export async function getPost(id) {
     console.error(error);
     throw error;
   }
-}
+};
 
 //CREATE A POST AND RETURN IT
 const newPost = async (

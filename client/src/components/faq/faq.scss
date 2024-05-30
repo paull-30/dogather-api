@@ -1,0 +1,65 @@
+@import '../../responsive.scss';
+
+.faq__container {
+  width: 852px;
+  display: flex;
+  flex-direction: column;
+  margin: 0 auto;
+
+  @include sm {
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+
+  h1 {
+    margin-bottom: 1.5rem;
+    font-weight: 700;
+    font-size: 2rem;
+    line-height: 38.4px;
+  }
+
+  &__section {
+    width: 852px;
+    display: flex;
+    flex-direction: column;
+    font-weight: 400;
+    font-size: 1.1rem;
+    line-height: 28px;
+
+    @include sm {
+      width: 90%;
+    }
+  }
+
+  &__section > :last-child {
+    & > :first-child {
+      border-bottom: none;
+    }
+  }
+
+  &__items {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__questions {
+    border-bottom: 1px solid rgb(170, 170, 170);
+    width: 770px;
+    padding: 1rem;
+
+    p {
+      margin: 1.25rem 0;
+    }
+  }
+
+  &-answers {
+    color: rgb(170, 170, 170);
+    display: none;
+  }
+}
+
+.faq__active {
+  display: initial;
+}

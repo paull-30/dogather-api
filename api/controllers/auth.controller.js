@@ -47,7 +47,7 @@ export const login = async (req, res) => {
 
   try {
     const user = await checkUsername(username);
-    const { skills } = await getSkills(user.id);
+    const { skills } = await getSkills(user?.id);
 
     if (!user) return res.status(400).json({ message: 'Invalid Credentials!' });
 

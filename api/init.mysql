@@ -1,0 +1,155 @@
+CREATE DATABASE IF NOT EXISTS DOGATHER;
+
+USE DOGATHER;
+
+CREATE TABLE `user` (
+  `id` VARCHAR(36) PRIMARY KEY,
+  `username` VARCHAR(255) NOT NULL UNIQUE,
+  `email` VARCHAR(255) NOT NULL UNIQUE,
+  `password` VARCHAR(255) NOT NULL,
+  `bio` TEXT,
+  `role` ENUM('ORGANIZER', 'VOLUNTEER', 'ADMIN') NOT NULL
+);
+
+CREATE TABLE `post` (
+  `id` VARCHAR(36) PRIMARY KEY,
+  `title` VARCHAR(255) NOT NULL,
+  `description` TEXT NOT NULL,
+  `status` ENUM('OPEN', 'CLOSED') NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `created_by` VARCHAR(36),
+  FOREIGN KEY (`created_by`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE `task` (
+  `id` VARCHAR(36) PRIMARY KEY,
+  `title` VARCHAR(255) NOT NULL,
+  `description` TEXT NOT NULL,
+  `status` ENUM('not_started', 'in_progress', 'completed') NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `created_by` VARCHAR(36),
+  `deadline` DATE,
+  `assigned_user_id` VARCHAR(36),
+  `post_id` VARCHAR(36),
+  FOREIGN KEY (`created_by`) REFERENCES `user`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`post_id`) REFERENCES `post`(`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE `post_invitations` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `post_id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `invited_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `status` ENUM('pending', 'accepted', 'rejected') DEFAULT 'pending',
+  FOREIGN KEY (`post_id`) REFERENCES `post`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE `post_applications` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `post_id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `applied_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `status` ENUM('pending', 'accepted', 'rejected') DEFAULT 'pending',
+  FOREIGN KEY (`post_id`) REFERENCES `post`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE `post_acceptances` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `post_id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `accepted_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`post_id`) REFERENCES `post`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE `users_skills` (
+  `user_id` VARCHAR(36) NOT NULL,
+  `skill` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`user_id`, `skill`),
+  FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE `posts_skills` (
+  `post_id` VARCHAR(36) NOT NULL,
+  `skill` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`post_id`, `skill`),
+  FOREIGN KEY (`post_id`) REFERENCES `post`(`id`) ON DELETE CASCADE
+);
+
+CREATE TABLE `post_messages` (
+  `id` INT AUTO_INCREMENT PRIMARY KEY,
+  `post_id` VARCHAR(36) NOT NULL,
+  `user_id` VARCHAR(36) NOT NULL,
+  `message` TEXT NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (`post_id`) REFERENCES `post`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`user_id`) REFERENCES `user`(`id`) ON DELETE CASCADE
+);
+
+-- Insert sample data
+
+INSERT INTO `user` (`id`, `username`, `email`, `password`, `bio`, `role`) VALUES
+('user1', 'alice', 'alice@example.com', '$2a$10$LzZT57yhmgsRw/oXEpBt9.F/NJKVHmUAyxsF13Vs3kzUzCPDOk09C', 'Bio of Alice', 'ORGANIZER'),
+('user2', 'bob', 'bob@example.com', '$2a$10$LzZT57yhmgsRw/oXEpBt9.F/NJKVHmUAyxsF13Vs3kzUzCPDOk09C', 'Bio of Bob', 'VOLUNTEER'),
+('user3', 'carol', 'carol@example.com', '$2a$10$LzZT57yhmgsRw/oXEpBt9.F/NJKVHmUAyxsF13Vs3kzUzCPDOk09C', 'Bio of Carol', 'ADMIN'),
+('user4', 'dave', 'dave@example.com', '$2a$10$LzZT57yhmgsRw/oXEpBt9.F/NJKVHmUAyxsF13Vs3kzUzCPDOk09C', 'Bio of Dave', 'VOLUNTEER'),
+('user5', 'eve', 'eve@example.com', '$2a$10$LzZT57yhmgsRw/oXEpBt9.F/NJKVHmUAyxsF13Vs3kzUzCPDOk09C', 'Bio of Eve', 'ORGANIZER');
+
+INSERT INTO `post` (`id`, `title`, `description`, `status`, `created_by`) VALUES
+('post1', 'Post 1 Title', 'Description for post 1', 'OPEN', 'user1'),
+('post2', 'Post 2 Title', 'Description for post 2', 'CLOSED', 'user2'),
+('post3', 'Post 3 Title', 'Description for post 3', 'OPEN', 'user3'),
+('post4', 'Post 4 Title', 'Description for post 4', 'CLOSED', 'user4'),
+('post5', 'Post 5 Title', 'Description for post 5', 'OPEN', 'user5');
+
+INSERT INTO `task` (`id`, `title`, `description`, `status`, `created_by`, `deadline`, `assigned_user_id`, `post_id`) VALUES
+('task1', 'Task 1 Title', 'Description for task 1', 'not_started', 'user1', '2024-07-15', 'user2', 'post1'),
+('task2', 'Task 2 Title', 'Description for task 2', 'in_progress', 'user2', '2024-07-16', 'user3', 'post2'),
+('task3', 'Task 3 Title', 'Description for task 3', 'completed', 'user3', '2024-07-17', 'user4', 'post3'),
+('task4', 'Task 4 Title', 'Description for task 4', 'not_started', 'user4', '2024-07-18', 'user5', 'post4'),
+('task5', 'Task 5 Title', 'Description for task 5', 'in_progress', 'user5', '2024-07-19', 'user1', 'post5');
+
+INSERT INTO `post_invitations` (`post_id`, `user_id`, `status`) VALUES
+('post1', 'user2', 'pending'),
+('post2', 'user3', 'accepted'),
+('post3', 'user4', 'rejected'),
+('post4', 'user5', 'pending'),
+('post5', 'user1', 'accepted');
+
+INSERT INTO `post_applications` (`post_id`, `user_id`, `status`) VALUES
+('post1', 'user3', 'pending'),
+('post2', 'user4', 'accepted'),
+('post3', 'user5', 'rejected'),
+('post4', 'user1', 'pending'),
+('post5', 'user2', 'accepted');
+
+INSERT INTO `post_acceptances` (`post_id`, `user_id`) VALUES
+('post1', 'user4'),
+('post2', 'user5'),
+('post3', 'user1'),
+('post4', 'user2'),
+('post5', 'user3');
+
+INSERT INTO `users_skills` (`user_id`, `skill`) VALUES
+('user1', 'Skill 1'),
+('user2', 'Skill 2'),
+('user3', 'Skill 3'),
+('user4', 'Skill 4'),
+('user5', 'Skill 5');
+
+INSERT INTO `posts_skills` (`post_id`, `skill`) VALUES
+('post1', 'Skill 1'),
+('post2', 'Skill 2'),
+('post3', 'Skill 3'),
+('post4', 'Skill 4'),
+('post5', 'Skill 5');
+
+INSERT INTO `post_messages` (`post_id`, `user_id`, `message`) VALUES
+('post1', 'user1', 'Message for post 1'),
+('post2', 'user2', 'Message for post 2'),
+('post3', 'user3', 'Message for post 3'),
+('post4', 'user4', 'Message for post 4'),
+('post5', 'user5', 'Message for post 5');
+

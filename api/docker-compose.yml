@@ -10,9 +10,9 @@ services:
       - mysql-data:/var/lib/mysql
       - ./init.mysql:/docker-entrypoint-initdb.d/init.sql
     ports:
-      - '3306:3306'
+      - "3306:3306"
     healthcheck:
-      test: ['CMD-SHELL', 'mysqladmin ping -u root -proot']
+      test: ["CMD-SHELL", "mysqladmin ping -u root -proot"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -22,7 +22,7 @@ services:
     container_name: adminer-container
     restart: always
     ports:
-      - '8080:8080'
+      - "8080:8080"
 
   nodeapp:
     container_name: nodeappcontainer
@@ -33,13 +33,13 @@ services:
     expose:
       - 8800
     environment:
-      CLIENT_URL: 'http://localhost:5000'
-      JWT_SECRET_KEY: 'secret'
-      PORT: '8800'
-      MYSQL_HOST: 'mysql'
-      MYSQL_USER: 'root'
-      MYSQL_PASSWORD: 'root'
-      MYSQL_DATABASE: 'DOGATHER'
+      CLIENT_URL: "http://localhost:5173/"
+      JWT_SECRET_KEY: "secret"
+      PORT: "8800"
+      MYSQL_HOST: "mysql"
+      MYSQL_USER: "root"
+      MYSQL_PASSWORD: "root"
+      MYSQL_DATABASE: "DOGATHER"
     depends_on:
       - mysql
 
